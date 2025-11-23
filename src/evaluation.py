@@ -13,8 +13,8 @@ def evaluate_sentiment(pred_path="outputs/sentiment/sentiment_predictions.csv"):
     os.makedirs("outputs/evaluation", exist_ok=True)
 
     # Overall metrics
-    y_true = df["sentiment"]
-    y_pred = df["predicted"]
+    y_true = df["true"]
+    y_pred = df["pred"]
 
     acc = accuracy_score(y_true, y_pred)
     p, r, f1, _ = precision_recall_fscore_support(y_true, y_pred, average="weighted")
@@ -34,8 +34,8 @@ def evaluate_sentiment(pred_path="outputs/sentiment/sentiment_predictions.csv"):
 
     for lang in ["en", "es"]:
         df_lang = df[df["lang"] == lang]
-        y_true_lang = df_lang["sentiment"]
-        y_pred_lang = df_lang["predicted"]
+        y_true_lang = df_lang["true"]
+        y_pred_lang = df_lang["pred"]
 
         acc = accuracy_score(y_true_lang, y_pred_lang)
         p, r, f1, _ = precision_recall_fscore_support(y_true_lang, y_pred_lang, average="weighted")

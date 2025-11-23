@@ -54,3 +54,5 @@ def run_preprocessing() -> None:
     df_raw = load_raw_dataset()
     df_long = reshape_to_long_format(df_raw)
     save_processed_data(df_raw, df_long)
+    
+    return df_raw, df_long

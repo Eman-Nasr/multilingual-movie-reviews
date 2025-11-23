@@ -55,7 +55,7 @@ def run_perplexity(
     for lang in ["en", "es"]:
         print(f"\n Computing perplexity for {lang.upper()} ...")
 
-        reviews = df_sample[df_sample["lang"] == lang]["review_clean"]
+        reviews = df_sample[df_sample["lang"] == lang]["text_clean_no_stop"]
 
         for n in [1, 2, 3]:
             model_path = os.path.join(model_dir, f"{lang}_{n}gram.pkl")

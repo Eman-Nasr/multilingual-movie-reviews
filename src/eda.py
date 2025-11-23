@@ -114,4 +114,5 @@ def run_eda() -> None:
     plt.close()
 
     print(" Saved EDA figures in outputs/eda/")
+    df.to_csv("data/processed/reviews_long.csv", index=False)
     print(" EDA finished. Use these outputs + printed stats in the report.")
