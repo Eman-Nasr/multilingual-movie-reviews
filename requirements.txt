@@ -17,4 +17,5 @@ seaborn
 # Utility
 tqdm
 
-
+# Optional: to avoid model download errors
+spacy-langdetect
