@@ -1,101 +1,121 @@
-from typing import Dict, List, Tuple
-
-import numpy as np
-import pandas as pd
 import spacy
-from sklearn.metrics import accuracy_score
+import random
+import pandas as pd
+import nltk
+from nltk import CFG
+
+# ------------------------------------------------------------
+# CFG GRAMMAR (simple demo grammar)
+# ------------------------------------------------------------
+
+GRAMMAR = CFG.fromstring("""
+S -> NP VP
+NP -> DT NN | DT JJ NN | PRP
+VP -> VBD NP | VBZ NP | VBP NP | VBD | VBZ | VBP
+DT -> 'the' | 'a'
+JJ -> 'good' | 'bad' | 'great'
+NN -> 'movie' | 'story' | 'actor'
+PRP -> 'i' | 'you'
+VBD -> 'liked' | 'hated' | 'watched'
+VBZ -> 'is' | 'was'
+VBP -> 'am' | 'are'
+""")
+
+parser = nltk.ChartParser(GRAMMAR)
 
 
-def _load_models() -> Dict[str, "spacy.Language"]:
-    print(" Loading spaCy models (en + es)…")
-    nlp_en = spacy.load("en_core_web_sm")
-    nlp_es = spacy.load("es_core_news_sm")
-    return {"en": nlp_en, "es": nlp_es}
+# ------------------------------------------------------------
+# CFG PARSER ANALYSIS
+# ------------------------------------------------------------
+
+def analyse_cfg_parser(sentences, lang):
+    print(f"\n========== CFG PARSING EXAMPLES ({lang.upper()}) ==========")
+
+    for sent in sentences[:3]:
+        tokens = [t.lower() for t in sent.split() if t.isalpha()]
+        print(f"\nSENTENCE: {sent}")
+        print(f"TOKENS: {tokens}")
+
+        try:
+            trees = list(parser.parse(tokens))
+            if trees:
+                for tree in trees:
+                    print(tree)
+            else:
+                print("   (No valid parse under this grammar)")
+        except Exception as e:
+            print(f"   Parser error: {e}")
+
+        print("----------------------------------------------------------")
 
 
-def _sample_sentences(df: pd.DataFrame, lang: str, n: int = 200) -> List[str]:
-    subset = df[df["lang"] == lang]["text"].dropna().sample(
-        n=min(n, df[df["lang"] == lang].shape[0]), random_state=42
-    )
-    return subset.tolist()
+# ------------------------------------------------------------
+# POS + NOUN CHUNK ANALYSIS
+# ------------------------------------------------------------
 
+def analyse_chunks(nlp, sentences, lang):
+    print(f"\n========== NOUN CHUNKS ({lang.upper()}) ==========")
 
-def _pos_baseline(tokens: List[str]) -> List[str]:
-    """
-    Very naive baseline POS tagger:
-    - tag everything as NOUN.
-    This gives us something to compare spaCy against.
-    """
-    return ["NOUN"] * len(tokens)
-
-
-def _evaluate_pos(nlp, sentences: List[str]) -> Tuple[List[str], List[str]]:
-    y_true_all = []
-    y_pred_all = []
-
-    for sent in sentences:
+    for sent in sentences[:3]:
         doc = nlp(sent)
-        tokens = [t.text for t in doc]
-        true_tags = [t.pos_ for t in doc]
-        baseline_tags = _pos_baseline(tokens)
-
-        y_true_all.extend(true_tags)
-        y_pred_all.extend(baseline_tags)
-
-    return y_true_all, y_pred_all
-
-
-def _analyse_chunks(nlp, sentences: List[str], lang: str) -> None:
-    print(f"\n Example noun chunks for {lang.upper()}:")
-    for sent in sentences[:5]:
-        doc = nlp(sent)
-        print(f"  SENT: {sent}")
+        print(f"\nSENT: {sent}")
         for chunk in doc.noun_chunks:
-            print(f"    NP: {chunk.text}")
-        print("---")
+            print(" NP:", chunk.text)
+
+        print("----------------------------------------------------------")
 
 
-def run_pos_chunking() -> None:
+# ------------------------------------------------------------
+# MAIN FUNCTION CALLED BY PIPELINE
+# ------------------------------------------------------------
+
+def run_pos_and_parsing(df_long):
     print("\n==============================")
     print("STAGE 3 POS TAGGING + PARSING / CHUNKING")
     print("==============================")
 
-    df = pd.read_csv("data/processed/reviews_long.csv")
-    nlp_models = _load_models()
+    # Load spaCy models
+    print(" Loading spaCy models (en + es)…")
+    nlp_en = spacy.load("en_core_web_sm")
+    nlp_es = spacy.load("es_core_news_sm")
 
-    metrics_rows = []
+    # Sample sentences for analysis
+    en_sents = df_long[df_long["lang"] == "en"]["text"].sample(3, random_state=42).tolist()
+    es_sents = df_long[df_long["lang"] == "es"]["text"].sample(3, random_state=42).tolist()
 
-    for lang in ["en", "es"]:
-        nlp = nlp_models[lang]
-        sents = _sample_sentences(df, lang, n=200)
+    # POS baseline accuracy (simple baseline model)
+    baseline_rows = []
 
-        print(f"\n Evaluating POS baseline vs spaCy for {lang.upper()} ({len(sents)} samples)…")
-        y_true, y_pred = _evaluate_pos(nlp, sents)
+    for lang, nlp, sents in [("en", nlp_en, en_sents), ("es", nlp_es, es_sents)]:
 
-        acc = accuracy_score(y_true, y_pred)
-        metrics_rows.append({"lang": lang, "metric": "pos_baseline_accuracy", "value": acc})
+        print(f"\n Evaluating POS baseline vs spaCy for {lang.upper()} (200 samples)…")
+
+        sample_df = df_long[df_long["lang"] == lang].sample(200, random_state=2)
+        gold_tags = []
+        baseline_tags = []
+
+        for text in sample_df["text"]:
+            doc = nlp(text)
+            gold_tags.extend([t.pos_ for t in doc])
+
+            # very crude baseline: all words tagged as NOUN
+            baseline_tags.extend(["NOUN"] * len(doc))
+
+        correct = sum(g1 == g2 for g1, g2 in zip(gold_tags, baseline_tags))
+        acc = correct / len(gold_tags)
 
         print(f"   Baseline accuracy vs spaCy POS (pseudo-gold): {acc:.3f}")
+        baseline_rows.append([lang, "pos_baseline_accuracy", acc])
 
-        # Expose variables exactly as mentioned in feedback
-        if lang == "en":
-            global y_true_en, y_pred_en
-            y_true_en, y_pred_en = y_true, y_pred
-        else:
-            global y_true_es, y_pred_es
-            y_true_es, y_pred_es = y_true, y_pred
+        # noun chunks
+        analyse_chunks(nlp, sents, lang)
 
-        # Parsing / chunking analysis
-        _analyse_chunks(nlp, sents, lang=lang)
+        # CFG parsing
+        analyse_cfg_parser(sents, lang)
 
-    metrics_df = pd.DataFrame(metrics_rows)
-    import os
-
-    os.makedirs("outputs/pos_parsing", exist_ok=True)
-    metrics_path = "outputs/pos_parsing/pos_baseline_metrics.csv"
-    metrics_df.to_csv(metrics_path, index=False)
-
-    print(f"\n Saved POS baseline metrics → {metrics_path}")
-    print(metrics_df)
+    # Save POS evaluation to CSV
+    df_metrics = pd.DataFrame(baseline_rows, columns=["lang", "metric", "value"])
+    df_metrics.to_csv("outputs/pos_parsing/pos_baseline_metrics.csv", index=False)
 
     print("\n POS + Parsing / Chunking stage complete.")
+    print(" POS / Chunking completed.\n")
