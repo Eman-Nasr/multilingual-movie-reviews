@@ -18,7 +18,7 @@ from .preprocessing import run_preprocessing
 from .eda import run_eda
 from .ngram_lm import run_ngram_models
 from .perplexity import run_perplexity
-from .pos_chunk_parser import run_pos_chunking
+from .pos_chunk_parser import run_pos_and_parsing
 from .ner import run_ner
 from .sentiment_model import run_sentiment_pipeline
 from .evaluation import run_evaluation
@@ -47,7 +47,7 @@ def run_full_pipeline() -> None:
     run_perplexity()
     print(" Perplexity completed.\n")
 
-    df_pos = run_pos_chunking()
+    run_pos_and_parsing(df_long)
     print(" POS / Chunking completed.\n")
 
     df_ner = run_ner()
