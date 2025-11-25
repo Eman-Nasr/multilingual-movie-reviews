@@ -172,3 +172,8 @@ project/
 ├── run.py
 ├── requirements.txt
 └── README.md
+
+
+# perplexity comparision command 
+
+* python -m src.ngram_external_compare
